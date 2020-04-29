@@ -2,7 +2,9 @@
 title: "EuropeanElections"
 author: "Willem Koonings"
 date: "23-4-2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -161,7 +163,7 @@ function.plot_election_results = function(region="Amsterdam", parties_to_highlig
   df_election_results_parties$value = as.numeric(df_election_results_parties$value)
   #df_election_results_parties
   
-  ggplot(df_election_results_parties[df_election_results_parties$variable %in% parties_to_highlight,], aes(x=year, y=perc, label=variable)) + geom_line(aes(color=df_election_results_parties[df_election_results_parties$variable %in% parties_to_highlight,]$variable), show.legend=FALSE) + geom_text_repel(data=df_election_results_parties[df_election_results_parties$year == 2019 & df_election_results_parties$variable %in% parties_to_highlight,], aes(label=variable), force=70, size=3, show.legend=FALSE) + xlab("Percentage of votes")
+  ggplot(df_election_results_parties[df_election_results_parties$variable %in% parties_to_highlight,], aes(x=year, y=perc, label=variable)) + geom_line(aes(color=df_election_results_parties[df_election_results_parties$variable %in% parties_to_highlight,]$variable), show.legend=FALSE) + geom_text_repel(data=df_election_results_parties[df_election_results_parties$year == 2019 & df_election_results_parties$variable %in% parties_to_highlight,], aes(label=variable), force=70, size=3, show.legend=FALSE) + ylab("Percentage of votes")
   
 }
 ```
@@ -217,11 +219,11 @@ function.plot_development_party_age = function(region="Amsterdam", party="CDA", 
 ```
 
 ``` {r}
-function.plot_development_party_immigration = function(region="Amsterdam", party="CDA") {
+function.plot_development_party_immigration = function(region="Amsterdam", party="CDA", parties=c("Perc_immigrants")) {
   df_data_to_plot = df_melted_all[df_melted_all$variable == party & df_melted_all$ï..RegioNaam == region,]
   df_data_to_plot$value = as.numeric(df_data_to_plot$value)
   
-  demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable == "Perc_immigrants",]
+  demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable %in% parties,]
   ggplot(df_data_to_plot, aes(x=year, y=percentage)) + geom_bar(stat="identity", fill="blue") + ylab(paste("Votes for ", party, " in percentage")) + geom_line(data=demo_to_plot, aes(x=Period, y=value, color="red"), show.legend=FALSE, size=2) + geom_text_repel(data=demo_to_plot[demo_to_plot$Period==2019,], aes(x=Period, y=value, label="Percentage of population with immigration background", force=30))
 }
 ``` 
@@ -292,6 +294,7 @@ function.plot_demographics_urbanization()
 function.plot_development_party_age()
 function.plot_development_party_immigration()
 function.plot_development_party_urbanized()
+function.plot_development_party_immigration(,"DENK", c("Perc_immigrants_non_western"))
 ```
 
 ``` {r exploring venray, echo=FALSE}
@@ -302,6 +305,9 @@ function.plot_election_results(municipality, parties_to_highlight)
 function.plot_demographics_age(municipality)
 function.plot_demographics_immigration(municipality)
 function.plot_demographics_urbanization(municipality)
+function.plot_development_party_age(municipality)
+function.plot_development_party_immigration(municipality)
+function.plot_development_party_urbanized(municipality)
 ```
 
 ``` {r }
@@ -312,4 +318,7 @@ function.plot_election_results(municipality, parties_to_highlight)
 function.plot_demographics_age(municipality)
 function.plot_demographics_immigration(municipality)
 function.plot_demographics_urbanization(municipality)
+function.plot_development_party_age(municipality)
+function.plot_development_party_immigration(municipality)
+function.plot_development_party_urbanized(municipality)
 ```
