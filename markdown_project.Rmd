@@ -1,0 +1,315 @@
+---
+title: "EuropeanElections"
+author: "Willem Koonings"
+date: "23-4-2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(ggplot2)
+require(ggrepel)
+require(reshape)
+require(dplyr)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r data cleaning}
+df_elec79 = read.csv("datasets/Uitslag_alle_gemeenten_EP19790607.csv", sep=";", header=TRUE, dec=",")
+df_elec84 = read.csv("datasets/Uitslag_alle_gemeenten_EP19840614.csv", sep=";", header=TRUE, dec=",")
+df_elec89 = read.csv("datasets/Uitslag_alle_gemeenten_EP19890615.csv", sep=";", header=TRUE, dec=",")
+df_elec94 = read.csv("datasets/Uitslag_alle_gemeenten_EP19940609.csv", sep=";", header=TRUE, dec=",")
+df_elec99 = read.csv("datasets/Uitslag_alle_gemeenten_EP19990610.csv", sep=";", header=TRUE, dec=",")
+df_elec04 = read.csv("datasets/Uitslag_alle_gemeenten_EP20040610.csv", sep=";", header=TRUE, dec=",")
+df_elec09 = read.csv("datasets/Uitslag_alle_gemeenten_EP20090604.csv", sep=";", header=TRUE, dec=",")
+df_elec14 = read.csv("datasets/Uitslag_alle_gemeenten_EP20140522.csv", sep=";", header=TRUE, dec=",")
+df_elec19 = read.csv("datasets/Uitslag_alle_gemeenten_EP20190523.csv", sep=";", header=TRUE, dec=",")
+
+df_melted_elec79 = melt(df_elec79, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec84 = melt(df_elec84, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec89 = melt(df_elec89, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec94 = melt(df_elec94, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec99 = melt(df_elec99, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec04 = melt(df_elec04, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec09 = melt(df_elec09, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec14 = melt(df_elec14, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+df_melted_elec19 = melt(df_elec19, id=(c("ï..RegioNaam","RegioCode")), stringsAsFactors=FALSE)
+
+df_melted_elec79$year = 1979
+df_melted_elec84$year = 1984
+df_melted_elec89$year = 1989
+df_melted_elec94$year = 1994
+df_melted_elec99$year = 1999
+df_melted_elec04$year = 2004
+df_melted_elec09$year = 2009
+df_melted_elec14$year = 2014
+df_melted_elec19$year = 2019
+
+df_melted_all = do.call("rbind", list(df_melted_elec79, df_melted_elec84, df_melted_elec89, df_melted_elec94, df_melted_elec99, df_melted_elec04, df_melted_elec09, df_melted_elec14, df_melted_elec19))
+
+v_alle_partijen = unique(df_melted_all$variable)[9:68]
+
+for (row in 1:nrow(df_melted_all)) {
+  if (df_melted_all[row, "variable"] %in% v_alle_partijen) {
+    region = df_melted_all[row, "RegioCode"]
+    year = df_melted_all[row, "year"]
+    
+    total_votes_cast = as.numeric(df_melted_all[df_melted_all$RegioCode == region & df_melted_all$year == year & df_melted_all$variable == "GeldigeStemmen", "value"])
+    
+    value = as.numeric(df_melted_all[row, "value"])
+    
+    percentage = value/total_votes_cast *100
+    df_melted_all[row, "percentage"] = percentage
+  }
+}
+
+age_groups = c("Total_15_20", "Total_20_25", "Total_25_45", "Total_45_65", "Total_65_80", "Total_80_above", "Total_urban_5", "Total_urban_4", "Total_urban_3", "Total_urban_2", "Total_urban_1")
+
+df_kerncijfers = read.csv("datasets/Regionale_kerncijfers_Nederland_28042020_113448.csv", sep=";", header=TRUE, dec=",")
+df_kerncijfers_new_col_names = c("Period", "Region", "Total", "Total_man", "Total_women", "Total_15_20", "Total_20_25", "Total_25_45", "Total_45_65", "Total_65_80", "Total_80_above", "Total_dutch", "Total_immigrants", "Total_immigrants_western", "Total_immigrants_non_western", "Total_immigrants_maroco", "Total_immigrants_former_netherlands", "Total_immigrants_suriname", "Total_immigrants_turky", "Total_immigrants_other", "Perc_dutch", "Perc_immigrants", "Perc_immigrants_western", "Perc_immigrants_non_western", "Perc_immigrants_maroco", "Perc_immigrants_former_netherlands", "Perc_immigrants_suriname", "Perc_immigrants_turky", "Perc_immigrants_other", "Total_urban_5", "Total_urban_4", "Total_urban_3", "Total_urban_2", "Total_urban_1")
+names(df_kerncijfers) = df_kerncijfers_new_col_names
+
+df_melted_demo = melt(df_kerncijfers, id=(c("Period", "Region")), stringsAsFactor=FALSE)
+
+for (row in 1:nrow(df_melted_demo)) {
+  variable = df_melted_demo[row, "variable"]
+  if (variable %in% age_groups) {
+    period = df_melted_demo[row, "Period"]
+    region = df_melted_demo[row, "Region"]
+    value = df_melted_demo[row, "value"]
+    
+    total_period_region = df_melted_demo[df_melted_demo$Period == period & df_melted_demo$Region == region & df_melted_demo$variable == "Total", "value"]
+    
+    perc = value/total_period_region * 100
+    
+    df_melted_demo[row, "percentage"] = perc
+  }
+}
+
+parties_to_highlight = c("Partij.van.de.Arbeid..P.v.d.A..", "CDA", "X50PLUS", "Democraten.66..D66.", "SP..Socialistische.Partij.", "DENK", "VVD", "GROENLINKS")
+```
+
+``` {r}
+df_melted_amsterdam = df_melted_all
+df_melted_amsterdam[df_melted_amsterdam$ï..RegioNaam == "Amsterdam",]
+
+for (row in 1:nrow(df_melted_amsterdam)) {
+  if (df_melted_amsterdam[row, "variable"] %in% v_alle_partijen) {
+    region = df_melted_amsterdam[row, "RegioCode"]
+    year = df_melted_amsterdam[row, "year"]
+    
+    total_votes_cast = as.numeric(df_melted_amsterdam[df_melted_amsterdam$RegioCode == region & df_melted_amsterdam$year == year & df_melted_amsterdam$variable == "GeldigeStemmen", "value"])
+    
+    value = as.numeric(df_melted_amsterdam[row, "value"])
+    
+    percentage = value/total_votes_cast *100
+    df_melted_amsterdam[row, "percentage"] = percentage
+  }
+}
+
+df_melted_amsterdam[df_melted_amsterdam$ï..RegioNaam == "Amsterdam",]
+
+#for (row in 1:nrow(df_melted_all)) {
+#  if (df_melted_all[row, "variable"] %in% v_alle_partijen) {
+#    region = df_melted_all[row, "ï..RegioNaam"]
+#    year = df_melted_all[row, "year"]
+#    party = df_melted_all[row, "variable"]
+#         
+#    total_votes_cast = df_melted_all[df_melted_all$Year == year & df_melted_all$variable == "GeldigeStemmen" & df_melted_all$ï..RegioNaam == region, "value"]
+#         
+#    votes = df_melted_all[row, "value"]
+#    percentage = as.numeric(votes) / as.numeric(total_votes_cast) * 100
+#    if (length(percentage) != 0) {
+#      df_melted_all[row, "perc"] = percentage
+#    }
+#    
+#  }
+#}
+```
+
+
+```{r plot election results function}
+function.plot_election_results = function(region="Amsterdam", parties_to_highlight=v_alle_partijen) {
+  df_election_results = df_melted_all[df_melted_all$ï..RegioNaam == region,]
+  
+  for (row in 1:nrow(df_election_results)) {
+    variable = df_election_results[row, "variable"]
+    if (variable %in% v_alle_partijen) {
+      region = df_election_results[row, "ï..RegioNaam"]
+      year = df_election_results[row, "year"]
+      party = df_election_results[row, "variable"]
+           
+      total_votes_cast = as.numeric(df_election_results[df_election_results$year == year & df_election_results$variable == "GeldigeStemmen" & df_election_results$ï == region, "value"])
+      
+      votes = as.numeric(df_election_results[row, "value"])
+      if (length(votes) > 0 & length(total_votes_cast) > 0) {
+        if (votes > 0 & total_votes_cast > 0) {
+          percentage = votes / total_votes_cast * 100
+          df_election_results[row, "perc"] = percentage
+        }
+      }
+    }
+  }
+  
+  df_election_results_parties = df_election_results[df_election_results$variable %in% v_alle_partijen,]
+  
+  df_election_results_parties$value = as.numeric(df_election_results_parties$value)
+  #df_election_results_parties
+  
+  ggplot(df_election_results_parties[df_election_results_parties$variable %in% parties_to_highlight,], aes(x=year, y=perc, label=variable)) + geom_line(aes(color=df_election_results_parties[df_election_results_parties$variable %in% parties_to_highlight,]$variable), show.legend=FALSE) + geom_text_repel(data=df_election_results_parties[df_election_results_parties$year == 2019 & df_election_results_parties$variable %in% parties_to_highlight,], aes(label=variable), force=70, size=3, show.legend=FALSE) + xlab("Percentage of votes")
+  
+}
+```
+
+```{r plot demographics by age function}
+function.plot_demographics_age = function(region="Amsterdam", groups=age_groups) {
+  groups = c("Total_15_20", "Total_20_25", "Total_25_45", "Total_45_65", "Total_65_80", "Total_80_above")
+  df_demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable %in% groups,]
+  
+  ggplot(df_demo_to_plot, aes(x=Period, y=percentage)) + geom_line(aes(color=df_demo_to_plot$variable), show.legend = FALSE) + geom_text_repel(data=df_demo_to_plot[df_demo_to_plot$Period == "2019",], aes(label=paste("Ages ", substring(variable, first=7), ": ", round(percentage, digits=2), "%")), force=30, size=3, show.legend = FALSE) + xlab("Year") + ylab("Share of age group")
+}
+```
+
+```{r plot demographics by immigration background function}
+function.plot_demographics_immigration = function(region="Amsterdam") {
+  groups_to_plot = c("Perc_dutch", "Perc_immigrants_western", "Perc_immigrants_maroco", "Perc_immigrants_former_netherlands", "Perc_immigrants_suriname", "Perc_immigrants_turky", "Perc_immigrants_other")
+  
+  df_demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable %in% groups_to_plot,]
+  
+  ggplot(df_demo_to_plot, aes(x=Period, y=value)) + geom_line(aes(color=df_demo_to_plot$variable), show.legend=FALSE) + geom_text_repel(data=df_demo_to_plot[df_demo_to_plot$Period == "2019",], aes(label=paste(variable, ": ",round(value, digits=2))), force=30, size=3, show.legend=FALSE) + xlab("Year") + ylab("Share of group by immigration status")
+}
+```
+
+``` {r plot demographics by urbanizations function}
+function.plot_demographics_urbanization = function(region="Amsterdam") {
+  groups_to_plot = c("Total_urban_5", "Total_urban_4", "Total_urban_3", "Total_urban_2", "Total_urban_1")
+  
+  df_demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable %in% groups_to_plot,]
+  
+  ggplot(df_demo_to_plot, aes(x=Period, y=percentage)) + geom_line(aes(color=df_demo_to_plot$variable), show.legend = FALSE) + geom_text_repel(data=df_demo_to_plot[df_demo_to_plot$Period == "2019",], aes(label=paste(variable, ": ", round(percentage, digits=2))), force=30, size=3, show.legend = FALSE) + xlab("Year") + ylab("Share of groups with different levels of urbanization")
+}
+```
+
+``` {r}
+function.plot_development_party_urbanized = function(region="Amsterdam", party="CDA") {
+  df_data_to_plot = df_melted_all[df_melted_all$variable == party & df_melted_all$ï..RegioNaam == region,]
+  df_data_to_plot$value = as.numeric(df_data_to_plot$value)
+  
+  demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable %in% c("Total_urban_5", "Total_urban_4"),] %>% group_by(Period) %>% summarize(Region = Region[1], Value=sum(value), percentage=sum(percentage))
+  
+  ggplot(df_data_to_plot, aes(x=year, y=percentage)) + geom_bar(stat="identity", fill="blue") + ylab(paste("Votes for ", party, " in percentage")) + geom_line(data=demo_to_plot, aes(x=Period, y=percentage, color="red"), show.legend=FALSE, size=2) + geom_text_repel(data=demo_to_plot[demo_to_plot$Period==2019,], aes(x=Period, y=percentage, label="Urbanized population in %"), force=30)
+}
+```
+
+``` {r}
+function.plot_development_party_age = function(region="Amsterdam", party="CDA", age="Total_65_80") {
+  df_data_to_plot = df_melted_all[df_melted_all$variable == party & df_melted_all$ï..RegioNaam == region,]
+  df_data_to_plot$value = as.numeric(df_data_to_plot$value)
+  
+  demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable == age,]
+  ggplot(df_data_to_plot, aes(x=year, y=percentage)) + geom_bar(stat="identity", fill="blue") + ylab(paste("Votes for ", party, " in percentage")) + geom_line(data=demo_to_plot, aes(x=Period, y=percentage, color="red"), show.legend=FALSE, size=2) + geom_text_repel(data=demo_to_plot[demo_to_plot$Period==2019,], aes(x=Period, y=percentage, label=paste("Ages ", substring(age, first=7, last = 8), substring(age, first=10, last=11))), force=30)
+}
+```
+
+``` {r}
+function.plot_development_party_immigration = function(region="Amsterdam", party="CDA") {
+  df_data_to_plot = df_melted_all[df_melted_all$variable == party & df_melted_all$ï..RegioNaam == region,]
+  df_data_to_plot$value = as.numeric(df_data_to_plot$value)
+  
+  demo_to_plot = df_melted_demo[df_melted_demo$Region == region & df_melted_demo$variable == "Perc_immigrants",]
+  ggplot(df_data_to_plot, aes(x=year, y=percentage)) + geom_bar(stat="identity", fill="blue") + ylab(paste("Votes for ", party, " in percentage")) + geom_line(data=demo_to_plot, aes(x=Period, y=value, color="red"), show.legend=FALSE, size=2) + geom_text_repel(data=demo_to_plot[demo_to_plot$Period==2019,], aes(x=Period, y=value, label="Percentage of population with immigration background", force=30))
+}
+``` 
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r exploring venray, echo=FALSE}
+
+df_venray_2019 = (df_melted_all[df_melted_all$ï..RegioNaam == "Venray" & df_melted_all$year == 2019 & df_melted_all$variable %in% v_alle_partijen ,])
+
+df_venray_2019$value = as.numeric(df_venray_2019$value)
+
+p = ggplot(df_venray_2019, aes(x=variable, y=value)) + geom_bar(stat="identity")
+p + theme(axis.text.x = element_text(angle=50, hjust=1))
+
+df_venray_CDA = (df_melted_all[df_melted_all$ï..RegioNaam == "Venray" & df_melted_all$variable %in% c("CDA", "Kiesgerechtigden"),])
+
+for (row in 1:nrow(df_venray_CDA)) {
+     variable = df_venray_CDA[row, "variable"]
+     if (variable %in% v_alle_partijen) {
+         year = df_venray_CDA[row, "year"]
+         kiesgerechtigden_year = df_venray_CDA[df_venray_CDA$year == year & df_venray_CDA$variable == "Kiesgerechtigden", "value"]
+         votes_year = df_venray_CDA[row, "value"]
+         percentage = as.numeric(votes_year) / as.numeric(kiesgerechtigden_year) * 100
+     df_venray_CDA[row, "perc"] = percentage
+  }
+}
+
+df_venray = df_melted_all[df_melted_all$ï..RegioNaam == "Venray",]
+for (row in 1:nrow(df_venray)) {
+     variable = df_venray[row, "variable"]
+     if (variable %in% v_alle_partijen) {
+         year = df_venray[row, "year"]
+         kiesgerechtigden_year = df_venray[df_venray$year == year & df_venray$variable == "GeldigeStemmen", "value"]
+         votes_year = df_venray[row, "value"]
+         percentage = as.numeric(votes_year) / as.numeric(kiesgerechtigden_year) * 100
+         df_venray[row, "perc"] = percentage
+     }
+}
+
+df_venray_all = df_venray[df_venray$variable %in% v_alle_partijen,]
+df_venray_all$year = as.numeric(df_venray_all$year)
+
+#p1 = ggplot(df_venray_all, aes(x=year, y=perc, label=variable)) + geom_line(aes(color=df_venray_all$variable), show.legend=FALSE)
+#p1 + geom_text_repel(data=df_venray_all[df_venray_all$year == 2019,], aes(label=variable, x=Inf, y=perc), show.legend=FALSE)
+
+#p2 = ggplot(df_venray_all[df_venray_all$variable %in% parties_to_highlight,], aes(x=year, y=perc, label=variable)) + geom_line(aes(color=df_venray_all[df_venray_all$variable %in% parties_to_highlight,]$variable), show.legend=FALSE)
+
+#p2 + geom_text_repel(data=df_venray_all[df_venray_all$year == 2019 & df_venray_all$variable %in% parties_to_highlight,], aes(label=variable), force=70, size=3, show.legend=FALSE)
+
+#function.plot_demographics("Venray")
+```
+
+```{r exploring amsterdam, echo=FALSE}
+
+#df_melted_all[df_melted_all$ï..RegioNaam == "Amsterdam" & df_melted_all$year == 2019,]
+
+#all_votes_cast = df_melted_all[df_melted_all$ï..RegioNaam == "Amsterdam" & df_melted_all$variable == "GeldigeStemmen" & df_melted_all$year == "2019", "value"]
+#as.numeric(all_votes_cast)
+
+#function.plot_election_results(df_melted_all[df_melted_all$ï..RegioNaam == "Amsterdam",])
+function.plot_election_results()
+function.plot_election_results(, parties_to_highlight)
+function.plot_demographics_age()
+function.plot_demographics_immigration()
+function.plot_demographics_urbanization()
+function.plot_development_party_age()
+function.plot_development_party_immigration()
+function.plot_development_party_urbanized()
+```
+
+``` {r exploring venray, echo=FALSE}
+municipality = "Venray"
+
+function.plot_election_results(municipality)
+function.plot_election_results(municipality, parties_to_highlight)
+function.plot_demographics_age(municipality)
+function.plot_demographics_immigration(municipality)
+function.plot_demographics_urbanization(municipality)
+```
+
+``` {r }
+municipality = "Eindhoven"
+
+function.plot_election_results(municipality)
+function.plot_election_results(municipality, parties_to_highlight)
+function.plot_demographics_age(municipality)
+function.plot_demographics_immigration(municipality)
+function.plot_demographics_urbanization(municipality)
+```
